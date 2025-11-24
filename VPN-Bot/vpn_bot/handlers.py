@@ -33,6 +33,9 @@ STATUS_ACTIVE = "ACTIVE"
 STATUS_REJECTED = "REJECTED"
 STATUS_EXPIRED = "EXPIRED"
 
+# Constants
+DAYS_PER_MONTH = 30  # Approximate conversion for months to days
+
 
 def _extract_payload(response: Dict[str, Any]) -> Dict[str, Any]:
     """Normalize API responses that may wrap useful data under multiple keys."""
@@ -634,7 +637,12 @@ class BotApp:
             return
         for row in rows:
             # Use plan name if available, otherwise show as custom plan
-            plan_name = row.get("name") or f"Custom Plan ({row['volume_gb']}GB, {row['duration_days']} days, ${row.get('total_price', 0):.2f})"
+            plan_name = row.get("name")
+            if not plan_name:
+                volume = row.get('volume_gb') or 0
+                days = row.get('duration_days') or 0
+                price = row.get('total_price') or 0
+                plan_name = f"Custom Plan ({volume}GB, {days} days, ${price:.2f})"
             caption = f"Order #{row['id']} from @{row['username']} for {plan_name}"
             keyboard = {
                 "inline_keyboard": [
@@ -853,10 +861,12 @@ class BotApp:
         for row in rows:
             expires = row.get("expires_at") or "-"
             # Use plan name if available, otherwise show as custom plan
-            plan_name = row.get("name") or "Custom Plan"
-            if not row.get("name"):
+            plan_name = row.get("name")
+            if not plan_name:
                 # For custom plans, add volume and duration info
-                plan_name = f"Custom Plan ({row['volume_gb']}GB, {row['duration_days']} days)"
+                volume = row.get('volume_gb') or 0
+                days = row.get('duration_days') or 0
+                plan_name = f"Custom Plan ({volume}GB, {days} days)"
             lines.append(
                 f"Order #{row['id']} - {plan_name}\nStatus: {row['status']}\nExpires: {expires}\nUsed: {row['traffic_used']} GB"
             )
@@ -1089,7 +1099,7 @@ class BotApp:
                     state["server_id"],
                     STATUS_WAITING_RECEIPT,
                     state["volume_gb"],
-                    state["duration_months"] * 30,  # Convert months to days
+                    state["duration_months"] * DAYS_PER_MONTH,  # Convert months to days
                     state["num_users"],
                     state["total_price"],
                     custom_config,
