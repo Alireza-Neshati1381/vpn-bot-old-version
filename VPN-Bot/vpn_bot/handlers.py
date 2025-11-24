@@ -301,6 +301,13 @@ class BotApp:
             self._start_purchase(chat_id, plan_id)
         elif data == "user:status":
             self._show_user_orders(chat_id)
+        elif data == "common:change_language":
+            self._show_language_options(chat_id, user)
+        elif data.startswith("common:set_language:"):
+            lang = data.split(":")[-1]
+            self._set_user_language(chat_id, user, lang)
+        elif data == "common:back":
+            self._send_dashboard(user, chat_id)
         else:
             self._send_dashboard(user, chat_id)
 
@@ -374,6 +381,9 @@ class BotApp:
                         {"text": i18n.get_text("admin.set_bank", lang=lang), "callback_data": "admin:set_bank"},
                         {"text": i18n.get_text("admin.pending_receipts", lang=lang), "callback_data": "accountant:pending"},
                     ],
+                    [
+                        {"text": i18n.get_text("common.language", lang=lang), "callback_data": "common:change_language"},
+                    ],
                 ]
             }
         if role == ROLE_ACCOUNTANT:
@@ -382,14 +392,45 @@ class BotApp:
                     [{"text": i18n.get_text("accountant.pending_receipts", lang=lang), "callback_data": "accountant:pending"}],
                     [{"text": i18n.get_text("accountant.view_plans", lang=lang), "callback_data": "user:buy"}],
                     [{"text": i18n.get_text("accountant.my_orders", lang=lang), "callback_data": "user:status"}],
+                    [{"text": i18n.get_text("common.language", lang=lang), "callback_data": "common:change_language"}],
                 ]
             }
         return {
             "inline_keyboard": [
                 [{"text": i18n.get_text("user.buy_plan", lang=lang), "callback_data": "user:buy"}],
                 [{"text": i18n.get_text("user.order_status", lang=lang), "callback_data": "user:status"}],
+                [{"text": i18n.get_text("common.language", lang=lang), "callback_data": "common:change_language"}],
             ]
         }
+
+    # ------------------------------------------------------------------
+    def _show_language_options(self, chat_id: int, user: Dict) -> None:
+        """Show language selection options to the user."""
+        lang = i18n.get_user_language(user)
+        text = i18n.get_text("common.change_language", lang=lang)
+        keyboard = {
+            "inline_keyboard": [
+                [{"text": "English 🇬🇧", "callback_data": "common:set_language:en"}],
+                [{"text": "فارسی 🇮🇷", "callback_data": "common:set_language:fa"}],
+                [{"text": i18n.get_text("common.back", lang=lang), "callback_data": "common:back"}],
+            ]
+        }
+        self.bot.send_message(chat_id, text, reply_markup=keyboard)
+
+    def _set_user_language(self, chat_id: int, user: Dict, lang: str) -> None:
+        """Set user's preferred language."""
+        if lang not in i18n.SUPPORTED_LANGUAGES:
+            return
+        user_id = user.get("id")
+        if not user_id:
+            return
+        if i18n.set_user_language(self.conn, user_id, lang):
+            # Reload user data with new language
+            user = self._get_user_by_chat(chat_id)
+            if user:
+                text = i18n.get_text("language_selected", lang=lang)
+                self.bot.send_message(chat_id, text)
+                self._send_dashboard(user, chat_id)
 
     # ------------------------------------------------------------------
     def _prompt_add_server(self, chat_id: int) -> None:

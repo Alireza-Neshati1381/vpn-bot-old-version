@@ -102,7 +102,9 @@
     "days": "days",
     "months": "months",
     "price": "Price",
-    "total": "Total"
+    "total": "Total",
+    "language": "🌐 Language",
+    "change_language": "Change Language"
   },
   
   "status": {
