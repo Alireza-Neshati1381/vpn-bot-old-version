@@ -15,6 +15,8 @@ from urllib.parse import quote, urlencode, urlparse
 
 from .config import Settings
 from . import database
+from . import i18n
+from . import security
 from .telegram import TelegramAPIError, TelegramBot
 from .xui_api import XUIClient, XUIError
 
@@ -338,53 +340,54 @@ class BotApp:
     # ------------------------------------------------------------------
     def _send_welcome(self, user: Dict, chat_id: int) -> None:
         role = user.get("role", ROLE_USER)
-        text = (
-            "Welcome to the VPN shop bot!\n"
-            "You are registered as {role}. Use the menu buttons below to get started."
-        ).format(role=role.title())
-        self.bot.send_message(chat_id, text, reply_markup=self._dashboard_keyboard(role))
+        lang = i18n.get_user_language(user)
+        role_text = i18n.get_text(f"common.{role.lower()}", lang=lang)
+        text = i18n.get_text("welcome", lang=lang, role=role_text)
+        self.bot.send_message(chat_id, text, reply_markup=self._dashboard_keyboard(role, lang))
 
     # ------------------------------------------------------------------
     def _send_dashboard(self, user: Dict, chat_id: int) -> None:
         role = user.get("role", ROLE_USER)
-        text = "Main dashboard ({role}).".format(role=role.title())
-        self.bot.send_message(chat_id, text, reply_markup=self._dashboard_keyboard(role))
+        lang = i18n.get_user_language(user)
+        role_text = i18n.get_text(f"common.{role.lower()}", lang=lang)
+        text = i18n.get_text("dashboard", lang=lang, role=role_text)
+        self.bot.send_message(chat_id, text, reply_markup=self._dashboard_keyboard(role, lang))
 
     # ------------------------------------------------------------------
-    def _dashboard_keyboard(self, role: str) -> Dict:
+    def _dashboard_keyboard(self, role: str, lang: str = "fa") -> Dict:
         if role == ROLE_ADMIN:
             return {
                 "inline_keyboard": [
                     [
-                        {"text": "Add server", "callback_data": "admin:add_server"},
-                        {"text": "List servers", "callback_data": "admin:list_servers"},
+                        {"text": i18n.get_text("admin.add_server", lang=lang), "callback_data": "admin:add_server"},
+                        {"text": i18n.get_text("admin.list_servers", lang=lang), "callback_data": "admin:list_servers"},
                     ],
                     [
-                        {"text": "Add plan", "callback_data": "admin:add_plan"},
-                        {"text": "List plans", "callback_data": "admin:list_plans"},
+                        {"text": i18n.get_text("admin.add_plan", lang=lang), "callback_data": "admin:add_plan"},
+                        {"text": i18n.get_text("admin.list_plans", lang=lang), "callback_data": "admin:list_plans"},
                     ],
                     [
-                        {"text": "Assign roles", "callback_data": "admin:assign_role"},
-                        {"text": "Accountants", "callback_data": "admin:list_accountants"},
+                        {"text": i18n.get_text("admin.assign_role", lang=lang), "callback_data": "admin:assign_role"},
+                        {"text": i18n.get_text("admin.accountants", lang=lang), "callback_data": "admin:list_accountants"},
                     ],
                     [
-                        {"text": "Set bank card", "callback_data": "admin:set_bank"},
-                        {"text": "Pending receipts", "callback_data": "accountant:pending"},
+                        {"text": i18n.get_text("admin.set_bank", lang=lang), "callback_data": "admin:set_bank"},
+                        {"text": i18n.get_text("admin.pending_receipts", lang=lang), "callback_data": "accountant:pending"},
                     ],
                 ]
             }
         if role == ROLE_ACCOUNTANT:
             return {
                 "inline_keyboard": [
-                    [{"text": "Pending receipts", "callback_data": "accountant:pending"}],
-                    [{"text": "View plans", "callback_data": "user:buy"}],
-                    [{"text": "My orders", "callback_data": "user:status"}],
+                    [{"text": i18n.get_text("accountant.pending_receipts", lang=lang), "callback_data": "accountant:pending"}],
+                    [{"text": i18n.get_text("accountant.view_plans", lang=lang), "callback_data": "user:buy"}],
+                    [{"text": i18n.get_text("accountant.my_orders", lang=lang), "callback_data": "user:status"}],
                 ]
             }
         return {
             "inline_keyboard": [
-                [{"text": "Buy plan", "callback_data": "user:buy"}],
-                [{"text": "Order status", "callback_data": "user:status"}],
+                [{"text": i18n.get_text("user.buy_plan", lang=lang), "callback_data": "user:buy"}],
+                [{"text": i18n.get_text("user.order_status", lang=lang), "callback_data": "user:status"}],
             ]
         }
 
