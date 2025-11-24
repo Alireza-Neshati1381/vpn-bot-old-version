@@ -19,6 +19,10 @@ CREATE_STATEMENTS: List[str] = [
         username TEXT,
         first_name TEXT,
         role TEXT NOT NULL,
+        language TEXT NOT NULL DEFAULT 'fa',
+        is_authenticated INTEGER NOT NULL DEFAULT 0,
+        rate_limit_count INTEGER NOT NULL DEFAULT 0,
+        rate_limit_reset TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
     """,
@@ -33,9 +37,18 @@ CREATE_STATEMENTS: List[str] = [
     )
     """,
     """
+    CREATE TABLE IF NOT EXISTS inbounds (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        inbound_id INTEGER NOT NULL,
+        server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+        friendly_name TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(inbound_id, server_id)
+    )
+    """,
+    """
     CREATE TABLE IF NOT EXISTS plans (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         country TEXT NOT NULL,
         inbound_id INTEGER NOT NULL,
@@ -43,27 +56,72 @@ CREATE_STATEMENTS: List[str] = [
         duration_days INTEGER NOT NULL,
         multi_user INTEGER NOT NULL DEFAULT 1,
         price REAL NOT NULL DEFAULT 0,
+        package_type TEXT NOT NULL DEFAULT 'prebuilt',
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS plan_servers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        plan_id INTEGER NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
+        server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(plan_id, server_id)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS server_pricing (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        server_id INTEGER REFERENCES servers(id) ON DELETE CASCADE,
+        price_per_gb REAL NOT NULL,
+        min_months INTEGER NOT NULL DEFAULT 1,
+        max_months INTEGER NOT NULL DEFAULT 6,
+        extra_month_price_percent REAL,
+        extra_month_price_absolute REAL,
+        additional_user_price REAL NOT NULL DEFAULT 0,
+        apply_to_all INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        plan_id INTEGER NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
+        plan_id INTEGER REFERENCES plans(id) ON DELETE SET NULL,
+        server_id INTEGER REFERENCES servers(id) ON DELETE SET NULL,
         status TEXT NOT NULL,
         receipt_file_id TEXT,
+        receipt_path TEXT,
         config_id TEXT,
         expires_at TEXT,
         traffic_used REAL NOT NULL DEFAULT 0,
+        volume_gb INTEGER,
+        duration_days INTEGER,
+        multi_user INTEGER,
+        total_price REAL,
+        custom_config TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        approved_at TEXT
+        approved_at TEXT,
+        rejected_at TEXT,
+        rejection_reason TEXT
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS security_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        telegram_id TEXT,
+        event_type TEXT NOT NULL,
+        description TEXT,
+        ip_address TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
     """,
 ]
