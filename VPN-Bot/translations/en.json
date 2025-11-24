@@ -82,7 +82,18 @@
     "pay_to_card": "\nPay to card: {card}",
     
     "config_ready": "Your VPN configuration is ready!\nPlan: {plan}\nExpires: {expires}\n\nConfig: {config}",
-    "config_expired": "Your VPN configuration expired and has been removed."
+    "config_expired": "Your VPN configuration expired and has been removed.",
+    
+    "custom_plan_select_server": "Select a server for your custom VPN plan:",
+    "custom_plan_no_servers": "No servers available. Please contact admin.",
+    "custom_plan_select_volume": "Enter volume in GB (e.g., 50):\n\nServer: {server}\nMin: {min_gb} GB, Max: {max_gb} GB\nPrice per GB: ${price_per_gb}",
+    "custom_plan_invalid_volume": "Invalid volume. Must be between {min_gb} and {max_gb} GB.",
+    "custom_plan_select_duration": "Enter duration in months (e.g., 3):\n\nServer: {server}\nVolume: {volume} GB\nMin: {min_months} months, Max: {max_months} months",
+    "custom_plan_invalid_duration": "Invalid duration. Must be between {min_months} and {max_months} months.",
+    "custom_plan_select_users": "Enter number of concurrent users (e.g., 1):\n\nServer: {server}\nVolume: {volume} GB\nDuration: {duration} months\nAdditional user price: ${additional_user_price} per user",
+    "custom_plan_invalid_users": "Invalid number. Must be at least 1.",
+    "custom_plan_confirm": "Review your custom plan:\n\nServer: {server}\nVolume: {volume} GB\nDuration: {duration} months\nUsers: {users}\n\nPrice Breakdown:\n{breakdown}\n\nTotal: ${total}\n\nConfirm to proceed with payment.",
+    "custom_plan_created": "Custom plan order created!\nOrder #{order_id}\nTotal: ${total}\n\nPlease make payment and upload receipt."
   },
   
   "common": {
@@ -102,7 +113,9 @@
     "days": "days",
     "months": "months",
     "price": "Price",
-    "total": "Total"
+    "total": "Total",
+    "language": "🌐 Language",
+    "change_language": "Change Language"
   },
   
   "status": {
