@@ -82,7 +82,18 @@
     "pay_to_card": "\nواریز به کارت: {card}",
     
     "config_ready": "پیکربندی VPN شما آماده است!\nپلن: {plan}\nتاریخ انقضا: {expires}\n\nپیکربندی: {config}",
-    "config_expired": "پیکربندی VPN شما منقضی شده و حذف گردیده است."
+    "config_expired": "پیکربندی VPN شما منقضی شده و حذف گردیده است.",
+    
+    "custom_plan_select_server": "سرور را برای پلن سفارشی VPN خود انتخاب کنید:",
+    "custom_plan_no_servers": "هیچ سروری در دسترس نیست. لطفاً با مدیر تماس بگیرید.",
+    "custom_plan_select_volume": "حجم را به گیگابایت وارد کنید (مثال: 50):\n\nسرور: {server}\nحداقل: {min_gb} گیگابایت، حداکثر: {max_gb} گیگابایت\nقیمت هر گیگابایت: {price_per_gb} تومان",
+    "custom_plan_invalid_volume": "حجم نامعتبر است. باید بین {min_gb} تا {max_gb} گیگابایت باشد.",
+    "custom_plan_select_duration": "مدت را به ماه وارد کنید (مثال: 3):\n\nسرور: {server}\nحجم: {volume} گیگابایت\nحداقل: {min_months} ماه، حداکثر: {max_months} ماه",
+    "custom_plan_invalid_duration": "مدت نامعتبر است. باید بین {min_months} تا {max_months} ماه باشد.",
+    "custom_plan_select_users": "تعداد کاربران همزمان را وارد کنید (مثال: 1):\n\nسرور: {server}\nحجم: {volume} گیگابایت\nمدت: {duration} ماه\nقیمت هر کاربر اضافی: {additional_user_price} تومان",
+    "custom_plan_invalid_users": "تعداد نامعتبر است. باید حداقل 1 باشد.",
+    "custom_plan_confirm": "پلن سفارشی خود را بررسی کنید:\n\nسرور: {server}\nحجم: {volume} گیگابایت\nمدت: {duration} ماه\nکاربران: {users}\n\nجزئیات قیمت:\n{breakdown}\n\nجمع کل: {total} تومان\n\nبرای ادامه و پرداخت تایید کنید.",
+    "custom_plan_created": "سفارش پلن سفارشی ایجاد شد!\nشماره سفارش: {order_id}\nجمع کل: {total} تومان\n\nلطفاً پرداخت کنید و رسید را آپلود نمایید."
   },
   
   "common": {

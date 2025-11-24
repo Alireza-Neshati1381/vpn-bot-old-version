@@ -16,6 +16,7 @@ from urllib.parse import quote, urlencode, urlparse
 from .config import Settings
 from . import database
 from . import i18n
+from . import pricing
 from . import security
 from .telegram import TelegramAPIError, TelegramBot
 from .xui_api import XUIClient, XUIError
@@ -301,6 +302,13 @@ class BotApp:
             self._start_purchase(chat_id, plan_id)
         elif data == "user:status":
             self._show_user_orders(chat_id)
+        elif data == "user:customize":
+            self._start_custom_plan(chat_id, user)
+        elif data.startswith("user:customize_server:"):
+            server_id = int(data.split(":")[-1])
+            self._custom_plan_select_volume(chat_id, user, server_id)
+        elif data.startswith("user:customize_confirm:"):
+            self._confirm_custom_plan(chat_id, user)
         elif data == "common:change_language":
             self._show_language_options(chat_id, user)
         elif data.startswith("common:set_language:"):
@@ -398,6 +406,7 @@ class BotApp:
         return {
             "inline_keyboard": [
                 [{"text": i18n.get_text("user.buy_plan", lang=lang), "callback_data": "user:buy"}],
+                [{"text": i18n.get_text("user.customize_plan", lang=lang), "callback_data": "user:customize"}],
                 [{"text": i18n.get_text("user.order_status", lang=lang), "callback_data": "user:status"}],
                 [{"text": i18n.get_text("common.language", lang=lang), "callback_data": "common:change_language"}],
             ]
@@ -613,9 +622,10 @@ class BotApp:
     def _show_pending_orders(self, chat_id: int) -> None:
         with database.transaction(self.conn) as cur:
             cur.execute(
-                "SELECT orders.id, orders.user_id, users.username, plans.name, orders.receipt_file_id "
+                "SELECT orders.id, orders.user_id, users.username, plans.name, orders.receipt_file_id, "
+                "orders.volume_gb, orders.duration_days, orders.total_price "
                 "FROM orders JOIN users ON orders.user_id = users.id "
-                "JOIN plans ON orders.plan_id = plans.id WHERE orders.status = ?",
+                "LEFT JOIN plans ON orders.plan_id = plans.id WHERE orders.status = ?",
                 (STATUS_PENDING_REVIEW,),
             )
             rows = database.fetch_all(cur)
@@ -623,7 +633,9 @@ class BotApp:
             self.bot.send_message(chat_id, "No pending receipts.")
             return
         for row in rows:
-            caption = f"Order #{row['id']} from @{row['username']} for {row['name']}"
+            # Use plan name if available, otherwise show as custom plan
+            plan_name = row.get("name") or f"Custom Plan ({row['volume_gb']}GB, {row['duration_days']} days, ${row.get('total_price', 0):.2f})"
+            caption = f"Order #{row['id']} from @{row['username']} for {plan_name}"
             keyboard = {
                 "inline_keyboard": [
                     [
@@ -647,24 +659,58 @@ class BotApp:
         if order["status"] != STATUS_PENDING_REVIEW:
             self.bot.send_message(chat_id, "Order is not waiting for approval.")
             return
-        plan = self._get_plan(order["plan_id"])
-        if not plan:
-            self.bot.send_message(chat_id, "Plan not found for order.")
-            return
-        server = self._get_server(plan["server_id"])
+        
+        # Handle both prebuilt plans and custom plans
+        if order.get("plan_id"):
+            # Prebuilt plan
+            plan = self._get_plan(order["plan_id"])
+            if not plan:
+                self.bot.send_message(chat_id, "Plan not found for order.")
+                return
+            server_id = plan["server_id"]
+            inbound_id = plan["inbound_id"]
+            duration_days = plan["duration_days"]
+            volume_gb = plan["volume_gb"]
+            multi_user = plan["multi_user"]
+            plan_name = plan["name"]
+        else:
+            # Custom plan
+            if not order.get("server_id"):
+                self.bot.send_message(chat_id, "Server not found for custom order.")
+                return
+            server_id = order["server_id"]
+            duration_days = order["duration_days"]
+            volume_gb = order["volume_gb"]
+            multi_user = order["multi_user"]
+            plan_name = "Custom Plan"
+            
+            # Get inbound_id from server - use the first available inbound
+            with database.transaction(self.conn) as cur:
+                cur.execute(
+                    "SELECT inbound_id FROM inbounds WHERE server_id = ? LIMIT 1",
+                    (server_id,),
+                )
+                inbound_row = database.fetch_one(cur)
+            if not inbound_row:
+                self.bot.send_message(chat_id, "No inbound configured for this server.")
+                return
+            inbound_id = inbound_row["inbound_id"]
+        
+        server = self._get_server(server_id)
         if not server:
             self.bot.send_message(chat_id, "Server not found for plan.")
             return
+        
         client = XUIClient(server["base_url"], server["username"], server["password"], verify_ssl=self.settings.xui_verify_ssl)
-        expires_at = datetime.utcnow() + timedelta(days=plan["duration_days"])
+        expires_at = datetime.utcnow() + timedelta(days=duration_days)
         config_payload = {
             "email": f"order-{order_id}",
             "expireTime": int(expires_at.timestamp() * 1000),
-            "totalGB": plan["volume_gb"] * 1024 * 1024 * 1024,
-            "limitIp": plan["multi_user"],
+            "totalGB": volume_gb * 1024 * 1024 * 1024,
+            "limitIp": multi_user,
         }
         try:
-            response = client.create_client(plan["inbound_id"], config_payload)
+            response = client.create_client(inbound_id, config_payload)
             client_payload = _extract_payload(response)
             config_id = (
                 client_payload.get("id")
@@ -679,7 +725,7 @@ class BotApp:
         inbound_details: Dict[str, Any] = {}
         client_entry: Dict[str, Any] = {}
         try:
-            inbound_response = client.get_inbound(plan["inbound_id"])
+            inbound_response = client.get_inbound(inbound_id)
             inbound_details = _extract_payload(inbound_response)
             settings = _as_dict(inbound_details.get("settings"))
             client_entry = _find_client(settings, client_id=config_id, email=config_payload["email"])
@@ -703,7 +749,7 @@ class BotApp:
         config_text = build_config_link(server["base_url"], inbound_details, client_entry)
         message_lines = [
             "Your VPN configuration is ready!",
-            f"Plan: {plan['name']}",
+            f"Plan: {plan_name}",
             f"Expires: {expires_at.isoformat()}",
         ]
         if config_text:
@@ -794,8 +840,9 @@ class BotApp:
             return
         with database.transaction(self.conn) as cur:
             cur.execute(
-                "SELECT orders.id, orders.status, orders.expires_at, plans.name, orders.traffic_used"
-                " FROM orders JOIN plans ON orders.plan_id = plans.id WHERE orders.user_id = ? ORDER BY orders.id DESC",
+                "SELECT orders.id, orders.status, orders.expires_at, plans.name, orders.traffic_used, "
+                "orders.volume_gb, orders.duration_days"
+                " FROM orders LEFT JOIN plans ON orders.plan_id = plans.id WHERE orders.user_id = ? ORDER BY orders.id DESC",
                 (user["id"],),
             )
             rows = database.fetch_all(cur)
@@ -805,10 +852,269 @@ class BotApp:
         lines = []
         for row in rows:
             expires = row.get("expires_at") or "-"
+            # Use plan name if available, otherwise show as custom plan
+            plan_name = row.get("name") or "Custom Plan"
+            if not row.get("name"):
+                # For custom plans, add volume and duration info
+                plan_name = f"Custom Plan ({row['volume_gb']}GB, {row['duration_days']} days)"
             lines.append(
-                f"Order #{row['id']} - {row['name']}\nStatus: {row['status']}\nExpires: {expires}\nUsed: {row['traffic_used']} GB"
+                f"Order #{row['id']} - {plan_name}\nStatus: {row['status']}\nExpires: {expires}\nUsed: {row['traffic_used']} GB"
             )
         self.bot.send_message(chat_id, "\n\n".join(lines))
+
+    # ------------------------------------------------------------------
+    # Custom Plan Builder
+    # ------------------------------------------------------------------
+    def _start_custom_plan(self, chat_id: int, user: Dict) -> None:
+        """Step 1: Show available servers for custom plan selection."""
+        lang = i18n.get_user_language(user)
+        with database.transaction(self.conn) as cur:
+            cur.execute("SELECT id, title FROM servers ORDER BY id")
+            servers = database.fetch_all(cur)
+        
+        if not servers:
+            text = i18n.get_text("user.custom_plan_no_servers", lang=lang)
+            self.bot.send_message(chat_id, text)
+            return
+        
+        text = i18n.get_text("user.custom_plan_select_server", lang=lang)
+        keyboard = {
+            "inline_keyboard": [
+                [{"text": s["title"], "callback_data": f"user:customize_server:{s['id']}"}]
+                for s in servers
+            ] + [[{"text": i18n.get_text("common.back", lang=lang), "callback_data": "common:back"}]]
+        }
+        self.bot.send_message(chat_id, text, reply_markup=keyboard)
+    
+    def _custom_plan_select_volume(self, chat_id: int, user: Dict, server_id: int) -> None:
+        """Step 2: Prompt user to enter volume in GB."""
+        lang = i18n.get_user_language(user)
+        
+        # Get server details and pricing
+        with database.transaction(self.conn) as cur:
+            cur.execute("SELECT * FROM servers WHERE id = ?", (server_id,))
+            server = database.fetch_one(cur)
+        
+        if not server:
+            self.bot.send_message(chat_id, i18n.get_text("user.plan_not_found", lang=lang))
+            return
+        
+        server_pricing = pricing.get_pricing_for_server(self.conn, server_id)
+        if not server_pricing:
+            self.bot.send_message(chat_id, i18n.get_text("errors.generic", lang=lang))
+            return
+        
+        # Store state for next step
+        self.states[chat_id] = {
+            "handler": self._handle_custom_volume,
+            "server_id": server_id,
+            "server_title": server["title"],
+            "pricing": server_pricing,
+        }
+        
+        text = i18n.get_text(
+            "user.custom_plan_select_volume",
+            lang=lang,
+            server=server["title"],
+            min_gb=1,
+            max_gb=pricing.MAX_VOLUME_GB,
+            price_per_gb=server_pricing.get("price_per_gb", 0),
+        )
+        self.bot.send_message(chat_id, text)
+    
+    def _handle_custom_volume(self, message: Dict, state: Dict) -> None:
+        """Handle volume input for custom plan."""
+        chat_id = message["chat"]["id"]
+        user = self._get_user_by_chat(chat_id)
+        if not user:
+            return
+        
+        lang = i18n.get_user_language(user)
+        text = message.get("text", "").strip()
+        
+        try:
+            volume = int(text)
+            if volume < 1 or volume > pricing.MAX_VOLUME_GB:
+                raise ValueError("Volume out of range")
+        except (ValueError, TypeError):
+            self.bot.send_message(
+                chat_id,
+                i18n.get_text("user.custom_plan_invalid_volume", lang=lang, min_gb=1, max_gb=pricing.MAX_VOLUME_GB),
+            )
+            return
+        
+        # Update state with volume
+        state["volume_gb"] = volume
+        
+        # Move to next step: duration
+        server_pricing = state.get("pricing", {})
+        min_months = server_pricing.get("min_months", 1)
+        max_months = server_pricing.get("max_months", 6)
+        
+        state["handler"] = self._handle_custom_duration
+        
+        text = i18n.get_text(
+            "user.custom_plan_select_duration",
+            lang=lang,
+            server=state["server_title"],
+            volume=volume,
+            min_months=min_months,
+            max_months=max_months,
+        )
+        self.bot.send_message(chat_id, text)
+    
+    def _handle_custom_duration(self, message: Dict, state: Dict) -> None:
+        """Handle duration input for custom plan."""
+        chat_id = message["chat"]["id"]
+        user = self._get_user_by_chat(chat_id)
+        if not user:
+            return
+        
+        lang = i18n.get_user_language(user)
+        text = message.get("text", "").strip()
+        server_pricing = state.get("pricing", {})
+        
+        try:
+            duration_months = int(text)
+            is_valid, error = pricing.validate_pricing_constraints(
+                state["volume_gb"], duration_months, server_pricing
+            )
+            if not is_valid:
+                raise ValueError(error)
+        except (ValueError, TypeError) as e:
+            min_months = server_pricing.get("min_months", 1)
+            max_months = server_pricing.get("max_months", 6)
+            self.bot.send_message(
+                chat_id,
+                i18n.get_text("user.custom_plan_invalid_duration", lang=lang, min_months=min_months, max_months=max_months),
+            )
+            return
+        
+        # Update state with duration
+        state["duration_months"] = duration_months
+        
+        # Move to next step: number of users
+        state["handler"] = self._handle_custom_users
+        
+        additional_user_price = server_pricing.get("additional_user_price", 0)
+        text = i18n.get_text(
+            "user.custom_plan_select_users",
+            lang=lang,
+            server=state["server_title"],
+            volume=state["volume_gb"],
+            duration=duration_months,
+            additional_user_price=additional_user_price,
+        )
+        self.bot.send_message(chat_id, text)
+    
+    def _handle_custom_users(self, message: Dict, state: Dict) -> None:
+        """Handle number of users input for custom plan."""
+        chat_id = message["chat"]["id"]
+        user = self._get_user_by_chat(chat_id)
+        if not user:
+            return
+        
+        lang = i18n.get_user_language(user)
+        text = message.get("text", "").strip()
+        
+        try:
+            num_users = int(text)
+            if num_users < 1:
+                raise ValueError("Must be at least 1")
+        except (ValueError, TypeError):
+            self.bot.send_message(chat_id, i18n.get_text("user.custom_plan_invalid_users", lang=lang))
+            return
+        
+        # Update state with num_users
+        state["num_users"] = num_users
+        
+        # Calculate price
+        server_pricing = state.get("pricing", {})
+        total_price, breakdown = pricing.calculate_pergb_price(
+            state["volume_gb"],
+            state["duration_months"],
+            num_users,
+            server_pricing,
+        )
+        
+        state["total_price"] = total_price
+        state["breakdown"] = breakdown
+        
+        # Show confirmation
+        breakdown_text = pricing.format_price_breakdown(breakdown, lang)
+        text = i18n.get_text(
+            "user.custom_plan_confirm",
+            lang=lang,
+            server=state["server_title"],
+            volume=state["volume_gb"],
+            duration=state["duration_months"],
+            users=num_users,
+            breakdown=breakdown_text,
+            total=f"{total_price:.2f}",
+        )
+        
+        keyboard = {
+            "inline_keyboard": [
+                [{"text": i18n.get_text("common.confirm", lang=lang), "callback_data": "user:customize_confirm:yes"}],
+                [{"text": i18n.get_text("common.cancel", lang=lang), "callback_data": "common:back"}],
+            ]
+        }
+        
+        self.bot.send_message(chat_id, text, reply_markup=keyboard)
+    
+    def _confirm_custom_plan(self, chat_id: int, user: Dict) -> None:
+        """Confirm and create custom plan order."""
+        lang = i18n.get_user_language(user)
+        state = self.states.get(chat_id)
+        
+        if not state:
+            self.bot.send_message(chat_id, i18n.get_text("errors.generic", lang=lang))
+            return
+        
+        # Create order with custom configuration
+        with database.transaction(self.conn) as cur:
+            # Store custom plan configuration in JSON
+            custom_config = json.dumps({
+                "server_id": state["server_id"],
+                "volume_gb": state["volume_gb"],
+                "duration_months": state["duration_months"],
+                "num_users": state["num_users"],
+            })
+            
+            cur.execute(
+                "INSERT INTO orders (user_id, server_id, status, volume_gb, duration_days, multi_user, total_price, custom_config)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    user["id"],
+                    state["server_id"],
+                    STATUS_WAITING_RECEIPT,
+                    state["volume_gb"],
+                    state["duration_months"] * 30,  # Convert months to days
+                    state["num_users"],
+                    state["total_price"],
+                    custom_config,
+                ),
+            )
+            order_id = cur.lastrowid
+        
+        # Clear state and set up receipt upload handler
+        self.states[chat_id] = {"handler": self._handle_receipt_upload, "order_id": order_id}
+        
+        # Get bank card info
+        with database.transaction(self.conn) as cur:
+            cur.execute("SELECT value FROM settings WHERE key = 'bank_card'")
+            card_row = database.fetch_one(cur)
+        
+        card_text = i18n.get_text("user.pay_to_card", lang=lang, card=card_row["value"]) if card_row else ""
+        
+        text = i18n.get_text(
+            "user.custom_plan_created",
+            lang=lang,
+            order_id=order_id,
+            total=f"{state['total_price']:.2f}",
+        ) + card_text
+        
+        self.bot.send_message(chat_id, text)
 
     # ------------------------------------------------------------------
     def _get_order(self, order_id: int) -> Optional[Dict]:
