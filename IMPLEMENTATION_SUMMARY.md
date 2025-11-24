@@ -71,7 +71,8 @@ This document summarizes the transformation of a minimal VPN bot into a **produc
 - **Status**: ✅ Fully implemented with migration files
 
 #### 5. Configuration Management
-- **Implementation**: `vpn_bot/config.py`, `.env.example`
+- **Implementation**: `vpn_bot/config.py`, `VPN-Bot/.env.example`
+- **Auto-loads**: `.env` file from VPN-Bot directory (using python-dotenv)
 - **Required Settings**:
   - `TELEGRAM_BOT_TOKEN` - Bot authentication
   - `BOT_ADMIN_PIN` - Admin authentication
@@ -267,7 +268,7 @@ This document summarizes the transformation of a minimal VPN bot into a **produc
 
 ```
 vpn-bot-old-version/
-├── .env.example                    # Environment template
+├── .env.example                    # Environment template (root)
 ├── .gitignore                      # Ignore patterns
 ├── README.md                       # Main documentation
 ├── CHANGELOG.md                    # Version history
@@ -279,6 +280,7 @@ vpn-bot-old-version/
 │   └── workflows/
 │       └── ci.yml                  # CI/CD pipeline
 └── VPN-Bot/
+    ├── .env.example                # Environment template (local dev)
     ├── main.py                     # Entry point
     ├── requirements.txt            # Dependencies
     ├── migrations/
@@ -294,7 +296,7 @@ vpn-bot-old-version/
     │   └── manual_test_guide.md    # Manual testing
     └── vpn_bot/
         ├── __init__.py
-        ├── config.py               # Configuration
+        ├── config.py               # Configuration (loads .env)
         ├── database.py             # DB helpers
         ├── handlers.py             # Bot logic
         ├── telegram.py             # Telegram API
@@ -339,7 +341,7 @@ vpn-bot-old-version/
 git clone https://github.com/Alireza-Neshati1381/vpn-bot-old-version.git
 cd vpn-bot-old-version
 
-# Configure
+# Configure (for docker-compose)
 cp .env.example .env
 # Edit .env and set:
 #   TELEGRAM_BOT_TOKEN=your_bot_token
@@ -359,6 +361,13 @@ docker-compose exec vpn-bot sqlite3 /data/vpn_bot.sqlite3 < migrations/001_initi
 ```bash
 cd VPN-Bot
 pip install -r requirements.txt
+
+# Option 1: Use .env file (recommended)
+cp .env.example .env
+# Edit .env and set TELEGRAM_BOT_TOKEN and BOT_ADMIN_PIN
+python main.py
+
+# Option 2: Use environment variables
 export TELEGRAM_BOT_TOKEN=your_token
 export BOT_ADMIN_PIN=your_pin
 python main.py

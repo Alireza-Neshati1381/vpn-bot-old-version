@@ -10,15 +10,6 @@ import os
 from pathlib import Path
 from typing import Optional
 
-try:
-    from dotenv import load_dotenv
-    # Load .env file from the VPN-Bot directory (parent of vpn_bot package)
-    env_path = Path(__file__).parent.parent / '.env'
-    load_dotenv(dotenv_path=env_path)
-except ImportError:
-    # python-dotenv not available, rely on environment variables only
-    pass
-
 
 @dataclass
 class Settings:
@@ -40,12 +31,32 @@ class Settings:
 def load_settings() -> Settings:
     """Load settings from environment variables.
 
+    Automatically loads .env file from VPN-Bot directory if python-dotenv is available.
+    Environment variables take precedence over .env file values.
+
     Returns
     -------
     Settings
         The populated configuration dataclass. Raises ``RuntimeError`` if the
         bot token or admin PIN is missing.
     """
+    # Try to load .env file if python-dotenv is available
+    # This is done inside the function to avoid issues during module import
+    try:
+        from dotenv import load_dotenv
+        # Load .env file from the VPN-Bot directory (parent of vpn_bot package)
+        # Allow override via DOTENV_PATH environment variable
+        dotenv_path = os.environ.get("DOTENV_PATH")
+        if dotenv_path:
+            env_path = Path(dotenv_path)
+        else:
+            env_path = Path(__file__).parent.parent / '.env'
+        
+        if env_path.exists():
+            load_dotenv(dotenv_path=env_path)
+    except ImportError:
+        # python-dotenv not available, rely on environment variables only
+        pass
 
     # SECURITY: Bot token must be set via environment variable
     token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("BOT_TOKEN")
