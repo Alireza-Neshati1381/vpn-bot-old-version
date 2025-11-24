@@ -98,7 +98,8 @@ class TestSecurity:
         result = security.secure_filename("../../etc/passwd")
         assert ".." not in result
         assert "/" not in result
-        assert result == "etcpasswd"
+        # os.path.basename removes leading path components
+        assert result == "passwd"
 
     def test_secure_filename_with_spaces(self):
         """Test secure filename removes spaces."""
