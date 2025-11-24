@@ -1,7 +1,8 @@
 """Configuration loader for the VPN bot.
 
-The project avoids optional dependencies and reads all configuration
-from environment variables so it can run in simple environments.
+Configuration is loaded from environment variables or .env files.
+The python-dotenv package is used for .env file support, but the code
+remains compatible with environments where it's not available.
 """
 from __future__ import annotations
 
@@ -58,12 +59,12 @@ def load_settings() -> Settings:
         # python-dotenv not available, rely on environment variables only
         pass
 
-    # SECURITY: Bot token must be set via environment variable
+    # SECURITY: Bot token must be set (via environment variable or .env file)
     token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("BOT_TOKEN")
     if not token:
         raise RuntimeError("TELEGRAM_BOT_TOKEN environment variable is required")
 
-    # SECURITY: Admin PIN must be set via environment variable
+    # SECURITY: Admin PIN must be set (via environment variable or .env file)
     admin_pin = os.environ.get("BOT_ADMIN_PIN")
     if not admin_pin:
         raise RuntimeError("BOT_ADMIN_PIN environment variable is required")
