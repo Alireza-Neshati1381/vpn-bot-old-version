@@ -7,7 +7,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import os
+from pathlib import Path
 from typing import Optional
+
+try:
+    from dotenv import load_dotenv
+    # Load .env file from the VPN-Bot directory (parent of vpn_bot package)
+    env_path = Path(__file__).parent.parent / '.env'
+    load_dotenv(dotenv_path=env_path)
+except ImportError:
+    # python-dotenv not available, rely on environment variables only
+    pass
 
 
 @dataclass

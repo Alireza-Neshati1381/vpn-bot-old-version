@@ -53,7 +53,7 @@ VPN-Bot/
 
 ## Environment Variables
 
-Create a `.env` file or set these environment variables:
+Create a `.env` file in the `VPN-Bot/` directory or set these environment variables:
 
 ### Required Variables
 
@@ -90,7 +90,7 @@ DEFAULT_LANGUAGE=fa
 LOG_LEVEL=INFO
 ```
 
-See `.env.example` for a complete template.
+See `VPN-Bot/.env.example` for a complete template.
 
 ## Installation & Setup
 
@@ -109,8 +109,8 @@ See `.env.example` for a complete template.
 
 3. **Configure environment**
    ```bash
-   cp ../.env.example .env
-   # Edit .env and set required variables
+   cp .env.example .env
+   # Edit .env and set required variables (TELEGRAM_BOT_TOKEN and BOT_ADMIN_PIN are required)
    ```
 
 4. **Run database migrations**
