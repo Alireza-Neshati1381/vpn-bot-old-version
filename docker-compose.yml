@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  vpn-bot:
+    build: .
+    container_name: vpn-bot
+    restart: unless-stopped
+    environment:
+      # Telegram Configuration
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - BOT_ADMIN_PIN=${BOT_ADMIN_PIN}
+      
+      # Database
+      - DB_PATH=/data/vpn_bot.sqlite3
+      
+      # API Settings
+      - XUI_VERIFY_SSL=${XUI_VERIFY_SSL:-false}
+      - POLL_INTERVAL=${POLL_INTERVAL:-1.0}
+      
+      # Security
+      - RATE_LIMIT_PER_MIN=${RATE_LIMIT_PER_MIN:-20}
+      - MAX_RECEIPT_SIZE_MB=${MAX_RECEIPT_SIZE_MB:-5}
+      
+      # Storage
+      - RECEIPT_STORAGE=${RECEIPT_STORAGE:-local}
+      - RECEIPT_UPLOAD_DIR=/data/receipts
+      
+      # Localization
+      - DEFAULT_LANGUAGE=${DEFAULT_LANGUAGE:-fa}
+      
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      # Persist database and uploads
+      - vpn-bot-data:/data
+      # Optional: mount config for easy updates
+      # - ./VPN-Bot:/app:ro
+    networks:
+      - vpn-bot-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  vpn-bot-data:
+    driver: local
+
+networks:
+  vpn-bot-network:
+    driver: bridge
