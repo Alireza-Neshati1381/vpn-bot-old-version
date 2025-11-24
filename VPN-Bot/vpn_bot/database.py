@@ -49,6 +49,7 @@ CREATE_STATEMENTS: List[str] = [
     """
     CREATE TABLE IF NOT EXISTS plans (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        server_id INTEGER REFERENCES servers(id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         country TEXT NOT NULL,
         inbound_id INTEGER NOT NULL,

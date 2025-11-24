@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS inbounds (
 -- Plans table for VPN subscription packages
 CREATE TABLE IF NOT EXISTS plans (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id INTEGER REFERENCES servers(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     country TEXT NOT NULL,
     inbound_id INTEGER NOT NULL,
@@ -116,6 +117,7 @@ CREATE TABLE IF NOT EXISTS security_events (
 -- Indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_plans_server_id ON plans(server_id);
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_expires_at ON orders(expires_at);
