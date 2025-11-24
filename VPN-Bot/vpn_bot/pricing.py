@@ -9,6 +9,9 @@ from typing import Dict, List, Optional, Tuple
 
 LOGGER = logging.getLogger(__name__)
 
+# Pricing constraints
+MAX_VOLUME_GB = 1000
+
 
 def calculate_prebuilt_price(plan: Dict) -> float:
     """Calculate price for a prebuilt package.
@@ -171,8 +174,8 @@ def validate_pricing_constraints(
     if volume_gb <= 0:
         return False, "Volume must be greater than 0"
     
-    if volume_gb > 1000:  # Sanity check
-        return False, "Volume too large"
+    if volume_gb > MAX_VOLUME_GB:
+        return False, f"Volume too large (max {MAX_VOLUME_GB} GB)"
     
     return True, None
 

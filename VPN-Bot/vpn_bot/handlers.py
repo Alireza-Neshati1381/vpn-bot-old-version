@@ -354,7 +354,7 @@ class BotApp:
         self.bot.send_message(chat_id, text, reply_markup=self._dashboard_keyboard(role, lang))
 
     # ------------------------------------------------------------------
-    def _dashboard_keyboard(self, role: str, lang: str = "fa") -> Dict:
+    def _dashboard_keyboard(self, role: str, lang: str = i18n.DEFAULT_LANGUAGE) -> Dict:
         if role == ROLE_ADMIN:
             return {
                 "inline_keyboard": [

@@ -17,6 +17,7 @@ LOGGER = logging.getLogger(__name__)
 # Security constants
 MAX_STRING_LENGTH = 500
 MAX_NUMERIC_VALUE = 1000000
+MAX_FILENAME_LENGTH = 100
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5MB default
 
@@ -280,9 +281,9 @@ def secure_filename(filename: str) -> str:
     filename = re.sub(r'[^a-zA-Z0-9._-]', '', filename)
     
     # Limit length
-    if len(filename) > 100:
+    if len(filename) > MAX_FILENAME_LENGTH:
         ext = Path(filename).suffix
-        name = Path(filename).stem[:100-len(ext)]
+        name = Path(filename).stem[:MAX_FILENAME_LENGTH-len(ext)]
         filename = name + ext
     
     return filename or "unknown"
