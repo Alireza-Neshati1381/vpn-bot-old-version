@@ -1,0 +1,123 @@
+{
+  "welcome": "Welcome to the VPN Bot!\nYou are registered as {role}. Use the menu buttons below to get started.",
+  "dashboard": "Main dashboard ({role}).",
+  "language_selected": "Language set to English.",
+  
+  "admin": {
+    "add_server": "Add Server",
+    "list_servers": "List Servers",
+    "add_plan": "Add Plan",
+    "list_plans": "List Plans",
+    "assign_role": "Assign Roles",
+    "accountants": "Accountants",
+    "set_bank": "Set Bank Card",
+    "pending_receipts": "Pending Receipts",
+    "add_inbound": "Add Inbound",
+    "list_inbounds": "List Inbounds",
+    "pricing_settings": "Pricing Settings",
+    
+    "prompt_add_server": "Send server information as: Title,URL,Username,Password",
+    "server_saved": "Server saved successfully.",
+    "server_deleted": "Server #{id} deleted.",
+    "no_servers": "No servers stored.",
+    "invalid_server_format": "Invalid format. Please send: Title,URL,Username,Password",
+    
+    "prompt_add_inbound": "Send inbound information as: InboundID,FriendlyName\nExample: 1,Main Server Inbound",
+    "inbound_saved": "Inbound saved successfully.",
+    "inbound_deleted": "Inbound #{id} deleted.",
+    "no_inbounds": "No inbounds configured.",
+    "invalid_inbound_format": "Invalid format. Please send: InboundID,FriendlyName",
+    
+    "choose_package_type": "Choose package type:",
+    "prebuilt_package": "Prebuilt Package",
+    "pergb_pricing": "Per-GB Pricing",
+    
+    "prompt_add_plan": "Send plan data as: Name,ServerID,InboundID,Country,VolumeGB,DurationDays,MultiUser,Price\nExample: Basic,1,100,IR,50,30,1,5",
+    "plan_saved": "Plan saved successfully.",
+    "plan_deleted": "Plan #{id} deleted.",
+    "no_plans": "No plans configured.",
+    "invalid_plan_format": "Invalid format. Please send 8 comma-separated values.",
+    "numeric_fields_error": "Numeric fields must be numbers.",
+    
+    "prompt_assign_role": "Send assignment as: @username ROLE\nROLE can be ADMIN or ACCOUNTANT.",
+    "role_updated": "Role updated for {username} -> {role}.",
+    "invalid_role_format": "Invalid format. Use: @username ROLE",
+    "invalid_role": "Role must be ADMIN or ACCOUNTANT.",
+    "user_not_found": "User not found. Ask them to /start the bot first.",
+    
+    "no_accountants": "No accountants assigned.",
+    
+    "prompt_bank_card": "Send the bank card number to store.",
+    "bank_card_saved": "Bank card saved successfully.",
+    "bank_card_empty": "Card number cannot be empty."
+  },
+  
+  "accountant": {
+    "pending_receipts": "Pending Receipts",
+    "view_plans": "View Plans",
+    "my_orders": "My Orders",
+    "approve": "Approve #{id}",
+    "reject": "Reject #{id}",
+    "order_approved": "Order #{id} approved.",
+    "order_rejected": "Order #{id} rejected.",
+    "no_pending": "No pending receipts.",
+    "order_not_found": "Order not found.",
+    "order_not_pending": "Order is not waiting for approval.",
+    "plan_not_found": "Plan not found for order.",
+    "server_not_found": "Server not found for plan.",
+    "panel_error": "Panel error: {error}",
+    "receipt_rejected_notify": "Your payment receipt was rejected. Please upload a new one."
+  },
+  
+  "user": {
+    "buy_plan": "Buy Plan",
+    "order_status": "Order Status",
+    "customize_plan": "Customize Plan",
+    "no_plans_available": "No plans available right now.",
+    "plan_not_found": "Plan not found.",
+    "send_receipt": "Send payment receipt photo for order #{id}.",
+    "receipt_must_be_photo": "Please send the receipt as a photo.",
+    "receipt_received": "Receipt received. Please wait for review.",
+    "no_orders": "You have no orders yet.",
+    "pay_to_card": "\nPay to card: {card}",
+    
+    "config_ready": "Your VPN configuration is ready!\nPlan: {plan}\nExpires: {expires}\n\nConfig: {config}",
+    "config_expired": "Your VPN configuration expired and has been removed."
+  },
+  
+  "common": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "select": "Select",
+    "next": "Next",
+    "previous": "Previous",
+    "loading": "Loading...",
+    "error": "An error occurred. Please try again.",
+    "success": "Operation successful.",
+    "admin": "Admin",
+    "accountant": "Accountant",
+    "user": "User",
+    "gb": "GB",
+    "days": "days",
+    "months": "months",
+    "price": "Price",
+    "total": "Total"
+  },
+  
+  "status": {
+    "waiting_receipt": "Waiting for Receipt",
+    "pending_review": "Pending Review",
+    "active": "Active",
+    "rejected": "Rejected",
+    "expired": "Expired"
+  },
+  
+  "errors": {
+    "generic": "An error occurred. Please try again later.",
+    "auth_failed": "Authentication failed.",
+    "permission_denied": "Permission denied.",
+    "invalid_input": "Invalid input.",
+    "rate_limit": "Too many requests. Please wait a moment."
+  }
+}

@@ -15,9 +15,16 @@ class Settings:
     """Configuration values required by the application."""
 
     bot_token: str
+    admin_pin: str
     database_path: str = "vpn_bot.sqlite3"
     poll_interval: float = 1.0
     xui_verify_ssl: bool = False
+    rate_limit_per_min: int = 20
+    max_receipt_size_mb: float = 5.0
+    receipt_storage: str = "local"
+    receipt_upload_dir: str = "uploads/receipts"
+    default_language: str = "fa"
+    log_level: str = "INFO"
 
 
 def load_settings() -> Settings:
@@ -27,14 +34,21 @@ def load_settings() -> Settings:
     -------
     Settings
         The populated configuration dataclass. Raises ``RuntimeError`` if the
-        bot token is missing because nothing can work without it.
+        bot token or admin PIN is missing.
     """
 
-    token = os.environ.get("BOT_TOKEN", "8259324966:AAH5VHzrtO5bwUjcX6LRv4BJwczZdCcgefg")
+    # SECURITY: Bot token must be set via environment variable
+    token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("BOT_TOKEN")
     if not token:
-        raise RuntimeError("BOT_TOKEN environment variable is required")
+        raise RuntimeError("TELEGRAM_BOT_TOKEN environment variable is required")
+
+    # SECURITY: Admin PIN must be set via environment variable
+    admin_pin = os.environ.get("BOT_ADMIN_PIN")
+    if not admin_pin:
+        raise RuntimeError("BOT_ADMIN_PIN environment variable is required")
 
     db_path = os.environ.get("DB_PATH", "vpn_bot.sqlite3")
+    
     poll_interval_raw = os.environ.get("POLL_INTERVAL", "1.0")
     try:
         poll_interval = float(poll_interval_raw)
@@ -43,9 +57,41 @@ def load_settings() -> Settings:
 
     verify_ssl = os.environ.get("XUI_VERIFY_SSL", "0") not in {"0", "false", "False"}
 
+    # Rate limiting
+    rate_limit_raw = os.environ.get("RATE_LIMIT_PER_MIN", "20")
+    try:
+        rate_limit = int(rate_limit_raw)
+    except ValueError:
+        rate_limit = 20
+
+    # Receipt handling
+    max_receipt_size_raw = os.environ.get("MAX_RECEIPT_SIZE_MB", "5.0")
+    try:
+        max_receipt_size = float(max_receipt_size_raw)
+    except ValueError:
+        max_receipt_size = 5.0
+
+    receipt_storage = os.environ.get("RECEIPT_STORAGE", "local")
+    receipt_upload_dir = os.environ.get("RECEIPT_UPLOAD_DIR", "uploads/receipts")
+
+    # Language settings
+    default_language = os.environ.get("DEFAULT_LANGUAGE", "fa")
+    if default_language not in ["en", "fa"]:
+        default_language = "fa"
+
+    # Logging
+    log_level = os.environ.get("LOG_LEVEL", "INFO")
+
     return Settings(
         bot_token=token,
+        admin_pin=admin_pin,
         database_path=db_path,
         poll_interval=poll_interval,
         xui_verify_ssl=verify_ssl,
+        rate_limit_per_min=rate_limit,
+        max_receipt_size_mb=max_receipt_size,
+        receipt_storage=receipt_storage,
+        receipt_upload_dir=receipt_upload_dir,
+        default_language=default_language,
+        log_level=log_level,
     )
