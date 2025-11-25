@@ -11,21 +11,31 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Any, Dict, Optional
 from urllib.parse import urljoin
 from uuid import uuid4
 
 import requests
 import urllib3
+from requests.exceptions import ConnectionError, SSLError
 from urllib3.exceptions import InsecureRequestWarning
 
 SUCCESS_STATUSES = {"success", True}
 
 LOGGER = logging.getLogger(__name__)
 
+# Retry configuration
+MAX_RETRIES = 3
+RETRY_BACKOFF = 1.0  # seconds
+
 
 class XUIError(RuntimeError):
     """Raised when the panel returns an unexpected error."""
+
+
+class XUIConnectionError(XUIError):
+    """Raised when a connection to the panel fails."""
 
 
 class XUIClient:
@@ -55,20 +65,64 @@ class XUIClient:
 
         return urljoin(self.base_url, path)
 
+    def _handle_connection_error(self, exc: Exception) -> None:
+        """Convert connection errors to user-friendly XUIConnectionError."""
+        error_str = str(exc)
+        base_msg = f"Failed to connect to panel at {self.base_url}"
+
+        if isinstance(exc, SSLError) or "SSL" in error_str or "ssl" in error_str:
+            # SSL/TLS handshake issue
+            hint = (
+                "This usually means the panel URL uses https:// but the server "
+                "expects http://, or the server has SSL/TLS misconfiguration. "
+                "Try changing the server URL from https:// to http://"
+            )
+            raise XUIConnectionError(f"{base_msg}: SSL/TLS error. {hint}") from exc
+
+        if "Connection refused" in error_str:
+            hint = "Make sure the panel is running and the port is correct."
+            raise XUIConnectionError(f"{base_msg}: Connection refused. {hint}") from exc
+
+        if "timed out" in error_str.lower() or "timeout" in error_str.lower():
+            hint = "The server took too long to respond. Check network connectivity."
+            raise XUIConnectionError(f"{base_msg}: Connection timed out. {hint}") from exc
+
+        # Generic connection error
+        raise XUIConnectionError(f"{base_msg}: {exc}") from exc
+
     def _login(self) -> None:
         """Authenticate and populate the session cookies."""
+        last_exc: Optional[Exception] = None
 
-        response = self.session.post(
-            self._build_url("login/"),
-            json={"username": self.username, "password": self.password},
-            timeout=self.timeout,
-            verify=self.verify_ssl,
-        )
-        response.raise_for_status()
-        data = response.json()
-        if data.get("status") not in SUCCESS_STATUSES and data.get("success") not in SUCCESS_STATUSES:
-            raise XUIError(f"login failed: {data}")
-        self._authenticated = True
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = self.session.post(
+                    self._build_url("login/"),
+                    json={"username": self.username, "password": self.password},
+                    timeout=self.timeout,
+                    verify=self.verify_ssl,
+                )
+                response.raise_for_status()
+                data = response.json()
+                if data.get("status") not in SUCCESS_STATUSES and data.get("success") not in SUCCESS_STATUSES:
+                    raise XUIError(f"login failed: {data}")
+                self._authenticated = True
+                return
+            except (SSLError, ConnectionError) as exc:
+                last_exc = exc
+                LOGGER.warning(
+                    "connection attempt %d/%d failed: %s",
+                    attempt + 1,
+                    MAX_RETRIES,
+                    exc,
+                )
+                if attempt < MAX_RETRIES - 1:
+                    time.sleep(RETRY_BACKOFF * (attempt + 1))
+                continue
+
+        # All retries exhausted
+        if last_exc is not None:
+            self._handle_connection_error(last_exc)
 
     def _request(
         self,
@@ -81,24 +135,45 @@ class XUIClient:
         if not self._authenticated:
             self._login()
         url = self._build_url(path)
-        response = self.session.request(
-            method,
-            url,
-            json=json_body,
-            timeout=self.timeout,
-            verify=self.verify_ssl,
-        )
-        if response.status_code == 401 and retry:
-            # Session expired, obtain fresh cookies and retry once.
-            LOGGER.info("session expired, re-authenticating")
-            self._authenticated = False
-            self._login()
-            return self._request(method, path, json_body=json_body, retry=False)
-        response.raise_for_status()
-        payload = response.json()
-        if payload.get("status") not in SUCCESS_STATUSES and payload.get("success") not in SUCCESS_STATUSES:
-            raise XUIError(f"API call failed: {payload}")
-        return payload
+        last_exc: Optional[Exception] = None
+
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = self.session.request(
+                    method,
+                    url,
+                    json=json_body,
+                    timeout=self.timeout,
+                    verify=self.verify_ssl,
+                )
+                if response.status_code == 401 and retry:
+                    # Session expired, obtain fresh cookies and retry once.
+                    LOGGER.info("session expired, re-authenticating")
+                    self._authenticated = False
+                    self._login()
+                    return self._request(method, path, json_body=json_body, retry=False)
+                response.raise_for_status()
+                payload = response.json()
+                if payload.get("status") not in SUCCESS_STATUSES and payload.get("success") not in SUCCESS_STATUSES:
+                    raise XUIError(f"API call failed: {payload}")
+                return payload
+            except (SSLError, ConnectionError) as exc:
+                last_exc = exc
+                LOGGER.warning(
+                    "request attempt %d/%d failed: %s",
+                    attempt + 1,
+                    MAX_RETRIES,
+                    exc,
+                )
+                if attempt < MAX_RETRIES - 1:
+                    time.sleep(RETRY_BACKOFF * (attempt + 1))
+                continue
+
+        # All retries exhausted
+        if last_exc is not None:
+            self._handle_connection_error(last_exc)
+        # Unreachable: _handle_connection_error always raises, but this satisfies type checkers
+        raise XUIConnectionError(f"Failed to connect to panel at {self.base_url}")  # pragma: no cover
 
     def create_client(self, inbound_id: int, config: Dict[str, Any]) -> Dict[str, Any]:
         """Create a client on the provided inbound using ``addClient`` endpoint."""
