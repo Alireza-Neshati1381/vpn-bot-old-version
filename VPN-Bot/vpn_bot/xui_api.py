@@ -172,8 +172,8 @@ class XUIClient:
         # All retries exhausted
         if last_exc is not None:
             self._handle_connection_error(last_exc)
-        # This line should never be reached since _handle_connection_error always raises
-        raise XUIConnectionError(f"Failed to connect to panel at {self.base_url}")
+        # Unreachable: _handle_connection_error always raises, but this satisfies type checkers
+        raise XUIConnectionError(f"Failed to connect to panel at {self.base_url}")  # pragma: no cover
 
     def create_client(self, inbound_id: int, config: Dict[str, Any]) -> Dict[str, Any]:
         """Create a client on the provided inbound using ``addClient`` endpoint."""
