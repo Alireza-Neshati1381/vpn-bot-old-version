@@ -66,6 +66,27 @@ class TestXUIClient:
         assert client._api_base_url == "https://example.com/login/panel/"
 
 
+class TestSSLErrorDetection:
+    """Tests for SSL error detection helper method."""
+
+    def test_is_ssl_error_with_ssl_error_instance(self):
+        """Test _is_ssl_error returns True for SSLError instance."""
+        client = XUIClient("https://example.com/", "user", "pass")
+        assert client._is_ssl_error(SSLError("test")) is True
+
+    def test_is_ssl_error_with_ssl_in_message(self):
+        """Test _is_ssl_error returns True for errors with SSL in message."""
+        client = XUIClient("https://example.com/", "user", "pass")
+        assert client._is_ssl_error(ConnectionError("SSL handshake failed")) is True
+        assert client._is_ssl_error(ConnectionError("ssl error occurred")) is True
+
+    def test_is_ssl_error_with_non_ssl_error(self):
+        """Test _is_ssl_error returns False for non-SSL errors."""
+        client = XUIClient("https://example.com/", "user", "pass")
+        assert client._is_ssl_error(ConnectionError("Connection refused")) is False
+        assert client._is_ssl_error(ConnectionError("Connection timed out")) is False
+
+
 class TestXUIConnectionErrors:
     """Tests for connection error handling."""
 

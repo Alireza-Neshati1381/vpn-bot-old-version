@@ -92,12 +92,20 @@ class XUIClient:
 
         return urljoin(self._api_base_url, path)
 
+    @staticmethod
+    def _is_ssl_error(exc: Exception) -> bool:
+        """Check if the exception is an SSL/TLS related error."""
+        if isinstance(exc, SSLError):
+            return True
+        error_str = str(exc)
+        return "SSL" in error_str or "ssl" in error_str
+
     def _handle_connection_error(self, exc: Exception) -> None:
         """Convert connection errors to user-friendly XUIConnectionError."""
         error_str = str(exc)
         base_msg = f"Failed to connect to panel at {self.base_url}"
 
-        if isinstance(exc, SSLError) or "SSL" in error_str or "ssl" in error_str:
+        if self._is_ssl_error(exc):
             # SSL/TLS handshake issue
             hint = (
                 "This usually means the panel URL uses https:// but the server "
@@ -137,9 +145,8 @@ class XUIClient:
                 return
             except (SSLError, ConnectionError) as exc:
                 last_exc = exc
-                is_ssl_error = isinstance(exc, SSLError) or "SSL" in str(exc) or "ssl" in str(exc)
                 hint = ""
-                if is_ssl_error and attempt == MAX_RETRIES - 1:
+                if self._is_ssl_error(exc) and attempt == MAX_RETRIES - 1:
                     hint = " Hint: Try changing the server URL from https:// to http://"
                 LOGGER.warning(
                     "connection attempt %d/%d failed: %s%s",
@@ -191,9 +198,8 @@ class XUIClient:
                 return payload
             except (SSLError, ConnectionError) as exc:
                 last_exc = exc
-                is_ssl_error = isinstance(exc, SSLError) or "SSL" in str(exc) or "ssl" in str(exc)
                 hint = ""
-                if is_ssl_error and attempt == MAX_RETRIES - 1:
+                if self._is_ssl_error(exc) and attempt == MAX_RETRIES - 1:
                     hint = " Hint: Try changing the server URL from https:// to http://"
                 LOGGER.warning(
                     "request attempt %d/%d failed: %s%s",
