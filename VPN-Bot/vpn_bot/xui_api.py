@@ -312,8 +312,8 @@ class XUIClient:
                 # Handle authentication errors (401 or 403)
                 # Some panels return 403 instead of 401 for session expiry
                 if response.status_code in (401, 403) and retry:
-                    LOGGER.info(
-                        "Authentication error (status %d), re-authenticating",
+                    LOGGER.debug(
+                        "Session expired (status %d), re-authenticating",
                         response.status_code,
                     )
                     self._authenticated = False
@@ -368,8 +368,15 @@ class XUIClient:
 
     def create_client(self, inbound_id: int, config: Dict[str, Any]) -> Dict[str, Any]:
         """Create a client on the provided inbound using ``addClient`` endpoint."""
-
-        uid = str(config.get("id") or config.get("uuid") or config.get("client_id") or config.get("email") or uuid4())
+        # Extract client ID from various possible config keys
+        uid = (
+            config.get("id")
+            or config.get("uuid")
+            or config.get("client_id")
+            or config.get("email")
+            or str(uuid4())
+        )
+        uid = str(uid)
         email = str(config.get("email") or uid)
         expiry_time = int(config.get("expireTime") or config.get("expiryTime") or 0)
         if expiry_time and expiry_time < 10**12:
@@ -492,11 +499,13 @@ class XUIClient:
                     if not isinstance(client, dict):
                         continue
                     if client.get("id") == client_id or client.get("email") == client_id:
+                        # Return a copy to avoid modifying the original inbound data
+                        result = client.copy()
                         # Try to add traffic info
                         traffic = self.get_client_traffic_by_id(client_id)
                         if traffic:
-                            client.update(traffic)
-                        return client
+                            result.update(traffic)
+                        return result
             except (json.JSONDecodeError, TypeError) as exc:
                 LOGGER.warning(
                     "Error parsing settings for inbound %s: %s",
