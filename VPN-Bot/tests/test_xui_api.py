@@ -129,6 +129,26 @@ class TestXUIConnectionErrors:
             assert mock_post.call_count == MAX_RETRIES
 
     @patch("vpn_bot.xui_api.time.sleep")
+    def test_ssl_error_logs_hint_on_final_retry(self, mock_sleep):
+        """Test that SSL errors log a hint on the final retry attempt."""
+        client = XUIClient("https://example.com:8080/panel/", "user", "pass")
+
+        ssl_error = SSLError("SSL: UNEXPECTED_EOF_WHILE_READING")
+
+        with patch.object(client.session, "post", side_effect=ssl_error):
+            with patch("vpn_bot.xui_api.LOGGER") as mock_logger:
+                with pytest.raises(XUIConnectionError):
+                    client._login()
+
+                # Check that the final warning includes the hint
+                warning_calls = mock_logger.warning.call_args_list
+                assert len(warning_calls) == MAX_RETRIES
+                # The last warning should include the hint
+                final_warning_args = warning_calls[-1][0]
+                # The format string is the first arg, hint is the last positional arg
+                assert "Hint: Try changing the server URL from https:// to http://" in final_warning_args[-1]
+
+    @patch("vpn_bot.xui_api.time.sleep")
     def test_retry_with_backoff(self, mock_sleep):
         """Test that retries use exponential backoff."""
         client = XUIClient("https://example.com:8080/panel/", "user", "pass")

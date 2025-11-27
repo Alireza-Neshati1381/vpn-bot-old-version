@@ -75,7 +75,7 @@ class XUIClient:
     @staticmethod
     def _compute_api_base_url(base_url: str, url_ends_with_login: bool) -> str:
         """Compute the API base URL.
-        
+
         If URL ends with /login, strip /login for API calls.
         If URL doesn't end with /login, use it as-is for API calls.
         """
@@ -137,11 +137,16 @@ class XUIClient:
                 return
             except (SSLError, ConnectionError) as exc:
                 last_exc = exc
+                is_ssl_error = isinstance(exc, SSLError) or "SSL" in str(exc) or "ssl" in str(exc)
+                hint = ""
+                if is_ssl_error and attempt == MAX_RETRIES - 1:
+                    hint = " Hint: Try changing the server URL from https:// to http://"
                 LOGGER.warning(
-                    "connection attempt %d/%d failed: %s",
+                    "connection attempt %d/%d failed: %s%s",
                     attempt + 1,
                     MAX_RETRIES,
                     exc,
+                    hint,
                 )
                 if attempt < MAX_RETRIES - 1:
                     time.sleep(RETRY_BACKOFF * (attempt + 1))
@@ -186,11 +191,16 @@ class XUIClient:
                 return payload
             except (SSLError, ConnectionError) as exc:
                 last_exc = exc
+                is_ssl_error = isinstance(exc, SSLError) or "SSL" in str(exc) or "ssl" in str(exc)
+                hint = ""
+                if is_ssl_error and attempt == MAX_RETRIES - 1:
+                    hint = " Hint: Try changing the server URL from https:// to http://"
                 LOGGER.warning(
-                    "request attempt %d/%d failed: %s",
+                    "request attempt %d/%d failed: %s%s",
                     attempt + 1,
                     MAX_RETRIES,
                     exc,
+                    hint,
                 )
                 if attempt < MAX_RETRIES - 1:
                     time.sleep(RETRY_BACKOFF * (attempt + 1))

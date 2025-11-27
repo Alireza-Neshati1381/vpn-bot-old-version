@@ -301,6 +301,13 @@ See `migrations/001_initial_schema.sql` for the complete schema.
 - Test panel access manually with curl
 - Review logs for detailed error messages
 
+### SSL/TLS Connection Errors
+If you see errors like `SSL: UNEXPECTED_EOF_WHILE_READING` or similar SSL errors:
+- **Most common fix**: Change the server URL from `https://` to `http://`. Many 3x-ui panels run on HTTP even on non-standard ports.
+- Example: Change `https://panel.example.com:8080/` to `http://panel.example.com:8080/`
+- If SSL is required, ensure the panel has a valid SSL certificate configured
+- Set `XUI_VERIFY_SSL=false` if using self-signed certificates (not recommended for production)
+
 ### Receipt uploads fail
 - Check `RECEIPT_UPLOAD_DIR` exists and is writable
 - Verify `MAX_RECEIPT_SIZE_MB` is sufficient
