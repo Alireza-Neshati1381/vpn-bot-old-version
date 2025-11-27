@@ -31,10 +31,10 @@ class TestXUIClient:
         result = client._build_url("panel/api/test")
         assert result == "https://example.com/panel/panel/api/test"
 
-    def test_url_without_login_uses_directly_for_login(self):
-        """Test that URL without /login is used directly as login URL."""
+    def test_url_without_login_appends_login_for_login_url(self):
+        """Test that URL without /login gets /login appended for login requests."""
         client = XUIClient("https://test.irlesson.ir:8080/testpatch/", "user", "pass")
-        assert client._login_url == "https://test.irlesson.ir:8080/testpatch/"
+        assert client._login_url == "https://test.irlesson.ir:8080/testpatch/login"
         assert client._api_base_url == "https://test.irlesson.ir:8080/testpatch/"
 
     def test_url_with_login_suffix_uses_directly_for_login(self):
