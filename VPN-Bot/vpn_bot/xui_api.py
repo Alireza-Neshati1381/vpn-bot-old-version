@@ -50,7 +50,14 @@ class XUIClient:
         verify_ssl: bool = False,
         timeout: int = 15,
     ) -> None:
+        # Store original URL with trailing slash
         self.base_url = base_url.rstrip("/") + "/"
+        # Check if URL ends with /login
+        self._url_ends_with_login = self._check_url_ends_with_login(base_url)
+        # Login URL is always the provided URL (it IS the login page)
+        self._login_url = self.base_url
+        # API base URL strips /login suffix if present
+        self._api_base_url = self._compute_api_base_url(self.base_url, self._url_ends_with_login)
         self.username = username
         self.password = password
         self.verify_ssl = verify_ssl
@@ -60,10 +67,30 @@ class XUIClient:
         if not verify_ssl:
             urllib3.disable_warnings(InsecureRequestWarning)
 
+    @staticmethod
+    def _check_url_ends_with_login(url: str) -> bool:
+        """Check if URL ends with /login (case-insensitive)."""
+        return url.rstrip("/").lower().endswith("/login")
+
+    @staticmethod
+    def _compute_api_base_url(base_url: str, url_ends_with_login: bool) -> str:
+        """Compute the API base URL.
+        
+        If URL ends with /login, strip /login for API calls.
+        If URL doesn't end with /login, use it as-is for API calls.
+        """
+        if url_ends_with_login:
+            # Strip /login/ from the end
+            url = base_url.rstrip("/")
+            if url.lower().endswith("/login"):
+                url = url[:-6]  # Remove '/login' (6 characters)
+            return url.rstrip("/") + "/"
+        return base_url
+
     def _build_url(self, path: str) -> str:
         """Return an absolute panel URL while preserving nested paths."""
 
-        return urljoin(self.base_url, path)
+        return urljoin(self._api_base_url, path)
 
     def _handle_connection_error(self, exc: Exception) -> None:
         """Convert connection errors to user-friendly XUIConnectionError."""
@@ -97,7 +124,7 @@ class XUIClient:
         for attempt in range(MAX_RETRIES):
             try:
                 response = self.session.post(
-                    self._build_url("login/"),
+                    self._login_url,
                     json={"username": self.username, "password": self.password},
                     timeout=self.timeout,
                     verify=self.verify_ssl,
