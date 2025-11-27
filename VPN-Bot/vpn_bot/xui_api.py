@@ -50,7 +50,13 @@ class XUIClient:
         verify_ssl: bool = False,
         timeout: int = 15,
     ) -> None:
-        self.base_url = self._normalize_base_url(base_url)
+        # Store original URL with trailing slash
+        self.base_url = base_url.rstrip("/") + "/"
+        # Check if URL ends with /login
+        self._url_ends_with_login = self._check_url_ends_with_login(base_url)
+        # Compute login URL and API base URL
+        self._login_url = self._compute_login_url(self.base_url, self._url_ends_with_login)
+        self._api_base_url = self._compute_api_base_url(self.base_url, self._url_ends_with_login)
         self.username = username
         self.password = password
         self.verify_ssl = verify_ssl
@@ -61,23 +67,39 @@ class XUIClient:
             urllib3.disable_warnings(InsecureRequestWarning)
 
     @staticmethod
-    def _normalize_base_url(base_url: str) -> str:
-        """Normalize base URL by removing /login suffix if present.
+    def _check_url_ends_with_login(url: str) -> bool:
+        """Check if URL ends with /login (case-insensitive)."""
+        return url.rstrip("/").lower().endswith("/login")
+
+    @staticmethod
+    def _compute_login_url(base_url: str, url_ends_with_login: bool) -> str:
+        """Compute the login URL.
         
-        Users may provide the full login page URL (e.g., https://host:port/panel/login)
-        instead of the base panel URL. This method strips the /login suffix so that
-        the login endpoint can be correctly constructed by appending login/.
+        If URL ends with /login, use it directly for login.
+        If URL doesn't end with /login, it IS the login page - use it directly.
         """
-        url = base_url.rstrip("/")
-        # Check if URL ends with /login (case-insensitive for robustness)
-        if url.lower().endswith("/login"):
-            url = url[:-6]  # Remove '/login' (6 characters)
-        return url.rstrip("/") + "/"
+        # In both cases, use the base_url directly for login
+        return base_url
+
+    @staticmethod
+    def _compute_api_base_url(base_url: str, url_ends_with_login: bool) -> str:
+        """Compute the API base URL.
+        
+        If URL ends with /login, strip /login for API calls.
+        If URL doesn't end with /login, use it as-is for API calls.
+        """
+        if url_ends_with_login:
+            # Strip /login/ from the end
+            url = base_url.rstrip("/")
+            if url.lower().endswith("/login"):
+                url = url[:-6]  # Remove '/login' (6 characters)
+            return url.rstrip("/") + "/"
+        return base_url
 
     def _build_url(self, path: str) -> str:
         """Return an absolute panel URL while preserving nested paths."""
 
-        return urljoin(self.base_url, path)
+        return urljoin(self._api_base_url, path)
 
     def _handle_connection_error(self, exc: Exception) -> None:
         """Convert connection errors to user-friendly XUIConnectionError."""
@@ -111,7 +133,7 @@ class XUIClient:
         for attempt in range(MAX_RETRIES):
             try:
                 response = self.session.post(
-                    self._build_url("login/"),
+                    self._login_url,
                     json={"username": self.username, "password": self.password},
                     timeout=self.timeout,
                     verify=self.verify_ssl,
