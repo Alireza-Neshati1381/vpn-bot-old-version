@@ -66,6 +66,27 @@ class TestXUIClient:
         assert client._api_base_url == "https://example.com/login/panel/"
 
 
+class TestSSLErrorDetection:
+    """Tests for SSL error detection helper method."""
+
+    def test_is_ssl_error_with_ssl_error_instance(self):
+        """Test _is_ssl_error returns True for SSLError instance."""
+        client = XUIClient("https://example.com/", "user", "pass")
+        assert client._is_ssl_error(SSLError("test")) is True
+
+    def test_is_ssl_error_with_ssl_in_message(self):
+        """Test _is_ssl_error returns True for errors with SSL in message."""
+        client = XUIClient("https://example.com/", "user", "pass")
+        assert client._is_ssl_error(ConnectionError("SSL handshake failed")) is True
+        assert client._is_ssl_error(ConnectionError("ssl error occurred")) is True
+
+    def test_is_ssl_error_with_non_ssl_error(self):
+        """Test _is_ssl_error returns False for non-SSL errors."""
+        client = XUIClient("https://example.com/", "user", "pass")
+        assert client._is_ssl_error(ConnectionError("Connection refused")) is False
+        assert client._is_ssl_error(ConnectionError("Connection timed out")) is False
+
+
 class TestXUIConnectionErrors:
     """Tests for connection error handling."""
 
@@ -127,6 +148,26 @@ class TestXUIConnectionErrors:
 
             # Should have retried MAX_RETRIES times
             assert mock_post.call_count == MAX_RETRIES
+
+    @patch("vpn_bot.xui_api.time.sleep")
+    def test_ssl_error_logs_hint_on_final_retry(self, mock_sleep):
+        """Test that SSL errors log a hint on the final retry attempt."""
+        client = XUIClient("https://example.com:8080/panel/", "user", "pass")
+
+        ssl_error = SSLError("SSL: UNEXPECTED_EOF_WHILE_READING")
+
+        with patch.object(client.session, "post", side_effect=ssl_error):
+            with patch("vpn_bot.xui_api.LOGGER") as mock_logger:
+                with pytest.raises(XUIConnectionError):
+                    client._login()
+
+                # Check that the final warning includes the hint
+                warning_calls = mock_logger.warning.call_args_list
+                assert len(warning_calls) == MAX_RETRIES
+                # The last warning should include the hint
+                final_warning_args = warning_calls[-1][0]
+                # The format string is the first arg, hint is the last positional arg
+                assert "Hint: Try changing the server URL from https:// to http://" in final_warning_args[-1]
 
     @patch("vpn_bot.xui_api.time.sleep")
     def test_retry_with_backoff(self, mock_sleep):
