@@ -272,6 +272,45 @@ Key differences from naive implementations:
 **Issue**: Clients can have `id` or `uuid` field  
 **Solution**: Code checks both fields when looking up clients
 
+### Login Method Variations
+**Issue**: Some 3x-ui panels expect JSON credentials, others expect form data  
+**Solution**: Client tries JSON first, then falls back to form data automatically
+
+### Cookie Name Variations
+**Issue**: Different panel versions use different session cookie names  
+**Solution**: Cookie-agnostic detection - any cookie set by the panel is accepted
+
+### 403 vs 401 Authentication Errors
+**Issue**: Some panels return 403 instead of 401 for expired sessions  
+**Solution**: Both 401 and 403 trigger re-authentication
+
+## New API Methods
+
+The following new methods were added for compatibility with AlamorVPN_Bot patterns:
+
+### List Inbounds
+**Method**: `XUIClient.list_inbounds()`  
+**API Endpoint**: `GET /panel/api/inbounds/list`  
+**Description**: Returns a list of all configured inbounds
+
+### Delete Client (Path-based)
+**Method**: `XUIClient.delete_client_by_path(inbound_id, client_id)`  
+**API Endpoint**: `POST /panel/api/inbounds/{inbound_id}/delClient/{client_id}`  
+**Description**: Alternative deletion method used by some panel versions
+
+### Get Client Traffic by ID
+**Method**: `XUIClient.get_client_traffic_by_id(client_id)`  
+**API Endpoint**: `GET /panel/api/inbounds/getClientTrafficsById/{client_id}`  
+**Description**: Get traffic stats without knowing the inbound ID
+
+### Get Client Info
+**Method**: `XUIClient.get_client_info(client_id)`  
+**Description**: Searches all inbounds for a client and returns full info with traffic
+
+### Check Connection
+**Method**: `XUIClient.check_connection()`  
+**Description**: Validates panel connection and credentials
+
 ## Security Considerations
 
 - Always use HTTPS in production
