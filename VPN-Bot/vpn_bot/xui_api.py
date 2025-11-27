@@ -66,9 +66,8 @@ class XUIClient:
         self.base_url = base_url.rstrip("/") + "/"
         # Check if URL ends with /login
         self._url_ends_with_login = self._check_url_ends_with_login(base_url)
-        # Login URL is always the provided URL (it IS the login page)
-        self._login_url = self.base_url
-        # API base URL strips /login suffix if present
+        # Compute login URL and API base URL
+        self._login_url = self._compute_login_url(self.base_url, self._url_ends_with_login)
         self._api_base_url = self._compute_api_base_url(self.base_url, self._url_ends_with_login)
         self.username = username
         self.password = password
@@ -85,6 +84,18 @@ class XUIClient:
     def _check_url_ends_with_login(url: str) -> bool:
         """Check if URL ends with /login (case-insensitive)."""
         return url.rstrip("/").lower().endswith("/login")
+
+    @staticmethod
+    def _compute_login_url(base_url: str, url_ends_with_login: bool) -> str:
+        """Compute the login URL.
+
+        If URL already ends with /login, use it as-is for login.
+        If URL doesn't end with /login, append /login for the login endpoint.
+        """
+        if url_ends_with_login:
+            return base_url
+        # Append /login to the base URL for login requests
+        return base_url.rstrip("/") + "/login"
 
     @staticmethod
     def _compute_api_base_url(base_url: str, url_ends_with_login: bool) -> str:
