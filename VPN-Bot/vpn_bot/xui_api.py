@@ -50,7 +50,7 @@ class XUIClient:
         verify_ssl: bool = False,
         timeout: int = 15,
     ) -> None:
-        self.base_url = base_url.rstrip("/") + "/"
+        self.base_url = self._normalize_base_url(base_url)
         self.username = username
         self.password = password
         self.verify_ssl = verify_ssl
@@ -59,6 +59,20 @@ class XUIClient:
         self._authenticated = False
         if not verify_ssl:
             urllib3.disable_warnings(InsecureRequestWarning)
+
+    @staticmethod
+    def _normalize_base_url(base_url: str) -> str:
+        """Normalize base URL by removing /login suffix if present.
+        
+        Users may provide the full login page URL (e.g., https://host:port/panel/login)
+        instead of the base panel URL. This method strips the /login suffix so that
+        the login endpoint can be correctly constructed by appending login/.
+        """
+        url = base_url.rstrip("/")
+        # Check if URL ends with /login (case-insensitive for robustness)
+        if url.lower().endswith("/login"):
+            url = url[:-6]  # Remove '/login' (6 characters)
+        return url.rstrip("/") + "/"
 
     def _build_url(self, path: str) -> str:
         """Return an absolute panel URL while preserving nested paths."""

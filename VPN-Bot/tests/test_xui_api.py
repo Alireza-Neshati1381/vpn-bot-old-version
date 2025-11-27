@@ -30,6 +30,32 @@ class TestXUIClient:
         result = client._build_url("login/")
         assert result == "https://example.com/panel/login/"
 
+    def test_init_strips_login_suffix(self):
+        """Test that /login suffix is stripped from base_url."""
+        client = XUIClient("https://example.com/panel/login", "user", "pass")
+        assert client.base_url == "https://example.com/panel/"
+
+    def test_init_strips_login_suffix_with_trailing_slash(self):
+        """Test that /login/ suffix is stripped from base_url."""
+        client = XUIClient("https://example.com/panel/login/", "user", "pass")
+        assert client.base_url == "https://example.com/panel/"
+
+    def test_init_strips_login_suffix_case_insensitive(self):
+        """Test that /Login suffix (mixed case) is stripped from base_url."""
+        client = XUIClient("https://example.com/panel/Login", "user", "pass")
+        assert client.base_url == "https://example.com/panel/"
+
+    def test_init_does_not_strip_login_in_middle(self):
+        """Test that login in the middle of path is not stripped."""
+        client = XUIClient("https://example.com/login/panel", "user", "pass")
+        assert client.base_url == "https://example.com/login/panel/"
+
+    def test_build_url_correct_after_login_stripped(self):
+        """Test that login URL is built correctly after stripping /login."""
+        client = XUIClient("https://example.com/panel/login", "user", "pass")
+        result = client._build_url("login/")
+        assert result == "https://example.com/panel/login/"
+
 
 class TestXUIConnectionErrors:
     """Tests for connection error handling."""
